@@ -78,6 +78,28 @@ def auto_detect_record_dir() -> Path:
     return root if root.exists() else Path.home()
 
 
+def newest_bin_files(folder: Path, limit: int = 10) -> list[Path]:
+    try:
+        files = [path for path in folder.glob("*.bin") if path.is_file()]
+    except OSError:
+        return []
+
+    def modified_at(path: Path) -> float:
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    return sorted(files, key=modified_at, reverse=True)[:limit]
+
+
+def count_bin_files(folder: Path) -> int:
+    try:
+        return sum(1 for path in folder.glob("*.bin") if path.is_file())
+    except OSError:
+        return 0
+
+
 @dataclasses.dataclass(frozen=True)
 class InstrumentProfile:
     name: str
@@ -555,12 +577,15 @@ class HeartopiaMidiBinMaker(tk.Tk):
         self.title_var = tk.StringVar(value="ConanMapBand")
         self.output_dir_var = tk.StringVar(value=str(auto_detect_record_dir()))
         self.status_var = tk.StringVar(value="Ready")
+        self.folder_status_var = tk.StringVar(value="")
         self.time_var = tk.StringVar(value="00:00.000 / 00:00.000")
         self.selected_instrument_var = tk.StringVar(value="Piano")
         self.offset_var = tk.StringVar(value="0.0")
         self.transpose_var = tk.StringVar(value="0")
 
         self._build_ui()
+        self.output_dir_var.trace_add("write", lambda *_args: self._refresh_folder_check())
+        self._refresh_folder_check()
         self.after(100, self._refresh_preview)
 
     def _build_ui(self) -> None:
@@ -663,6 +688,17 @@ class HeartopiaMidiBinMaker(tk.Tk):
         ttk.Button(export_box, text="Build .bin", command=self._build_file).pack(fill=X)
         ttk.Label(export_box, textvariable=self.status_var, wraplength=330).pack(fill=X, pady=(8, 0))
 
+        folder_box = ttk.LabelFrame(right, text="Record folder check", padding=8)
+        folder_box.pack(fill=X, pady=(0, 10))
+        ttk.Label(folder_box, textvariable=self.folder_status_var, wraplength=330).pack(fill=X)
+        folder_buttons = ttk.Frame(folder_box)
+        folder_buttons.pack(fill=X, pady=(6, 4))
+        ttk.Button(folder_buttons, text="Refresh folder", command=self._refresh_folder_check).pack(side=LEFT)
+        ttk.Button(folder_buttons, text="Auto detect", command=self._auto_detect_output).pack(side=LEFT, padx=4)
+        self.folder_text = tk.Text(folder_box, height=8, wrap="none")
+        self.folder_text.pack(fill=X)
+        self.folder_text.configure(state="disabled")
+
         log_box = ttk.LabelFrame(right, text="Process log", padding=8)
         log_box.pack(fill=BOTH, expand=True)
         self.log = tk.Text(log_box, height=12, wrap="word")
@@ -679,6 +715,52 @@ class HeartopiaMidiBinMaker(tk.Tk):
         lines.append("")
         lines.append("Tip: one .bin can contain multiple MIDI sequences. Each sequence can use a different profile.")
         return "\n".join(lines)
+
+    def _refresh_folder_check(self) -> None:
+        folder = Path(self.output_dir_var.get())
+        lines: list[str] = []
+        if not folder.exists():
+            self.folder_status_var.set("Folder does not exist yet. Open the game once or use Auto detect/Browse.")
+        elif not folder.is_dir():
+            self.folder_status_var.set("Selected output path is not a folder.")
+        else:
+            bin_count = count_bin_files(folder)
+            if bin_count:
+                self.folder_status_var.set(
+                    f"Found {bin_count} .bin file(s). This is likely correct if these names match the in-game list."
+                )
+                for path in newest_bin_files(folder, limit=10):
+                    lines.append(self._format_record_file(path))
+            else:
+                self.folder_status_var.set(
+                    "No .bin files found here. If the game already shows saved songs, this is probably the wrong profile folder."
+                )
+                candidates = find_record_dirs()
+                if candidates:
+                    lines.append("Auto-detect candidates:")
+                    for candidate in candidates[:5]:
+                        lines.append(f"{count_bin_files(candidate):>3} bin  {candidate}")
+        if not lines:
+            lines.append("No record files to show.")
+        self.folder_text.configure(state="normal")
+        self.folder_text.delete("1.0", END)
+        self.folder_text.insert(END, "\n".join(lines))
+        self.folder_text.configure(state="disabled")
+
+    def _format_record_file(self, path: Path) -> str:
+        title = path.stem
+        duration_text = ""
+        parts = path.stem.rsplit("_", 2)
+        if len(parts) == 3 and parts[2].isdigit():
+            title = parts[0]
+            duration_text = format_time(int(parts[2]) / 1000.0)
+        try:
+            modified_text = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        except OSError:
+            modified_text = "unknown time"
+        if duration_text:
+            return f"{title}  {duration_text}  {modified_text}\n  {path.name}"
+        return f"{path.name}  {modified_text}"
 
     def _browse_output(self) -> None:
         folder = filedialog.askdirectory(initialdir=self.output_dir_var.get())
@@ -920,6 +1002,7 @@ class HeartopiaMidiBinMaker(tk.Tk):
             return
 
         self.status_var.set(f"Built: {out_path}")
+        self._refresh_folder_check()
         self._log(f"Built {out_path}")
         self._log(f"Duration: {duration:.3f}s, events: {(len(data) - 14) // 26}, notes: {len(notes)}")
         for name, seq_stats in stats.items():

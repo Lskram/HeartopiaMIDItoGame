@@ -25,4 +25,6 @@ The app auto-detects the output folder from:
 
 It chooses the profile folder with the most/recent `.bin` files. Use `Auto detect` if you switch accounts or the folder id changes.
 
+Use `Record folder check` to verify the selected folder. A correct folder should usually show the existing `.bin` songs that also appear in the in-game song list.
+
 The preview timeline is visual only. It does not play audio.
