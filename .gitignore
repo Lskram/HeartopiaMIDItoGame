@@ -1,0 +1,9 @@
+__pycache__/
+build/
+dist/
+*.pyc
+*.pyo
+*.log
+
+# The main exe may be locked/stale while the app is running.
+HeartopiaMidiBinMaker.exe
