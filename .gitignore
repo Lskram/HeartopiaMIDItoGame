@@ -1,9 +1,15 @@
 __pycache__/
 build/
 dist/
+.venv/
+_smoke_build/
+_smoke_dist/
 *.pyc
 *.pyo
 *.log
+*.tmp
+*.cache
 
-# The main exe may be locked/stale while the app is running.
+# Local build outputs
 HeartopiaMidiBinMaker.exe
+HeartopiaMidiBinMaker_AutoDetect.exe

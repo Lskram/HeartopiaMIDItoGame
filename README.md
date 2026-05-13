@@ -28,3 +28,25 @@ It chooses the profile folder with the most/recent `.bin` files. Use `Auto detec
 Use `Record folder check` to verify the selected folder. A correct folder should usually show the existing `.bin` songs that also appear in the in-game song list.
 
 The preview timeline is visual only. It does not play audio.
+
+## Development
+
+Runtime dependencies are standard-library only. For development/build tooling, set up a local virtual environment:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev.ps1
+```
+
+Verify a fresh clone:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_repo.ps1
+```
+
+Build the Windows executable with PyInstaller:
+
+```powershell
+.\build.ps1
+```
+
+The generated executable is local build output and should not be committed back into the repo.

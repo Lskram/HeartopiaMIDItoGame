@@ -1,9 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+
+SPEC_DIR = Path(SPECPATH).resolve()
+PROJECT_ROOT = SPEC_DIR
 
 
 a = Analysis(
-    ['D:\\TL\\HeartopiaMidiBinMaker\\heartopia_midi_bin_maker.py'],
-    pathex=[],
+    [str(PROJECT_ROOT / 'heartopia_midi_bin_maker.py')],
+    pathex=[str(PROJECT_ROOT)],
     binaries=[],
     datas=[],
     hiddenimports=[],
@@ -28,7 +32,7 @@ exe = EXE(
     strip=False,
     upx=True,
     upx_exclude=[],
-    runtime_tmpdir=None,
+    runtime_tmpdir=str(PROJECT_ROOT / '.pyi_runtime'),
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
